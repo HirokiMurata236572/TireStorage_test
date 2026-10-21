@@ -1,32 +1,30 @@
-# DUNLOP タイヤ電子荷票 GitHub Pages版
+# DUNLOP タイヤ電子荷票 本運用版
 
-公開先: `https://hirokimurata236572.github.io/TireStorage_test/`
+構成はGitHub Pages（画面）＋Supabase（認証・PostgreSQL共有DB・リアルタイム通知）です。別端末でも最新在庫を参照・更新できます。
 
-## 配置ファイル
-- `index.html`
-- `style.css`
-- `app.js`
-- `.nojekyll`
+## 導入手順
+1. Supabaseでプロジェクトを作成。
+2. SQL Editorで`schema.sql`を実行。完了条件: `staff`、`tire_tags`、`stock_history`が作成される。
+3. Authentication > Usersで利用者を作成。公開登録は有効にしない。
+4. Project Settings > APIからProject URLとpublishable/anon keyを取得。
+5. `config.example.js`を`config.js`へコピーし、2値を設定。service_role keyは絶対に置かない。
+6. `index.html`、`app.js`、`style.css`、`config.js`、`supabase.bundle.js`、`qrcode.min.js`、`.nojekyll`をGitHub Pages公開ブランチ直下へ配置。
+7. Supabase Authentication > URL ConfigurationのSite URLへ`https://hirokimurata236572.github.io/TireStorage_test/`を設定。
+8. Supabase Database > Replicationで`tire_tags`のRealtimeを有効化。
 
-上記4ファイルをリポジトリの公開ブランチ直下へ配置してください。
+## 動作確認
+- 端末Aでログインし、担当者と電子荷票を作成。
+- 端末Bで同じURLにログインし、同じ荷票が見えることを確認。
+- 端末Aで入庫し、端末Bへ反映されることを確認。
+- 同時更新時はversion不一致で後発更新を止め、再読込を促します。
+- QRは`?tag=TAG-XXXXXXXX`を指し、未ログイン時はログイン後に該当荷票を開きます。
 
-## QRコードの仕様
-QRには次の固定形式のURLが入ります。
+## 安全設計
+- Row Level Securityにより未認証アクセスを拒否。
+- 在庫更新はDB関数内のトランザクションと行ロックで実施。
+- 負在庫禁止、担当者無効化後の利用禁止、履歴の直接変更禁止。
+- 電子荷票は在庫0本の場合のみ論理削除。
+- 担当者無効化後も`staff_name`を履歴に保持。
 
-`https://hirokimurata236572.github.io/TireStorage_test/?tag=TAG-A7F3C9`
-
-プロジェクト名をコードへ固定せず、現在の公開ディレクトリを自動判定します。このため、リポジトリ名を維持する限りそのまま利用できます。
-
-## QR表示と印刷
-1. 公開ページを開く
-2. 電子荷票一覧から対象を選ぶ
-3. 電子荷票右上にQRが表示される
-4. 「QR識別票を印刷」を押す
-5. A6縦・倍率100%で印刷する
-
-QRが表示されない場合は、ブラウザーの開発者ツールで `cdn.jsdelivr.net` がブロックされていないか確認してください。
-
-## GitHub Pages版の重要な制約
-GitHub Pagesは静的サイトです。電子荷票・担当者・在庫はブラウザーの`localStorage`へ保存されるため、PCで新規作成した荷票は別のスマートフォンへ自動共有されません。初期サンプル `TAG-A7F3C9` はどの端末でも表示できますが、実際の複数端末共有にはMicrosoft Lists、Dataverse、Azure Functions等の共有データ保存先が必要です。
-
-本番QRを印刷する前に、スマートフォンで公開URLを開き、対象荷票が表示できることを確認してください。
+## 制約
+管理者権限の分離は初期版に含めていません。全ログイン利用者が在庫更新・担当者管理を行えます。本番開始前に、必要なら`profiles.role`を追加して管理画面を管理者限定にしてください。
